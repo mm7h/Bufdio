@@ -24,6 +24,7 @@ public class AudioPlayer : IAudioPlayer
     private const int MinQueueSize = 8;
     private const int MaxQueueSize = 128;
     private bool _disposed;
+    private readonly FFmpegDecoderOptions _decoderOptions;
 
     /// <summary>
     /// Initializes <see cref="AudioPlayer"/> instance by providing <see cref="IAudioEngine"/> instance.
@@ -33,6 +34,23 @@ public class AudioPlayer : IAudioPlayer
     {
         Ensure.NotNull(engine, nameof(engine));
         Engine = engine;
+        VolumeProcessor = new VolumeProcessor { Volume = 1 };
+        Queue = new ConcurrentQueue<AudioFrame>();
+        _decoderOptions = null;
+    }
+
+    /// <summary>
+    /// Initializes <see cref="AudioPlayer"/> instance by providing <see cref="FFmpegDecoderOptions"/> instance.
+    /// The audio engine will be automatically configured to match the decoder output format.
+    /// </summary>
+    /// <param name="decoderOptions">FFmpeg decpder options that specify output format.</param>
+    public AudioPlayer(FFmpegDecoderOptions decoderOptions = null)
+    {
+        _decoderOptions = decoderOptions ?? new FFmpegDecoderOptions();
+
+        var engineOptions = new AudioEngineOptions(_decoderOptions.Channels, _decoderOptions.SampleRate);
+
+        Engine = new PortAudioEngine(engineOptions);
         VolumeProcessor = new VolumeProcessor { Volume = 1 };
         Queue = new ConcurrentQueue<AudioFrame>();
     }
@@ -252,7 +270,7 @@ public class AudioPlayer : IAudioPlayer
     /// <returns>A new <see cref="FFmpegDecoder"/> instance.</returns>
     protected virtual IAudioDecoder CreateDecoder(string url)
     {
-        return new FFmpegDecoder(url);
+        return new FFmpegDecoder(url, _decoderOptions);
     }
 
     /// <summary>
@@ -263,7 +281,7 @@ public class AudioPlayer : IAudioPlayer
     /// <returns>A new <see cref="FFmpegDecoder"/> instance.</returns>
     protected virtual IAudioDecoder CreateDecoder(Stream stream)
     {
-        return new FFmpegDecoder(stream);
+        return new FFmpegDecoder(stream, _decoderOptions);
     }
 
     /// <summary>

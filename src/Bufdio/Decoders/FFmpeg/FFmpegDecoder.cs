@@ -91,12 +91,14 @@ public sealed unsafe class FFmpegDecoder : IAudioDecoder
 
         options ??= new FFmpegDecoderOptions();
 
-        var channelLayout = _codecCtx->channel_layout <= 0
-            ? ffmpeg.av_get_default_channel_layout(_codecCtx->channels)
-            : (long)_codecCtx->channel_layout;
+        var srcChannelLayout = _codecCtx->ch_layout;
+        if (srcChannelLayout.nb_channels == 0)
+        {
+            ffmpeg.av_channel_layout_default(&srcChannelLayout, _codecCtx->ch_layout.nb_channels);
+        }
 
         _resampler = new FFmpegResampler(
-            channelLayout,
+            srcChannelLayout,
             _codecCtx->sample_rate,
             _codecCtx->sample_fmt,
             options.Channels,
@@ -106,7 +108,7 @@ public sealed unsafe class FFmpegDecoder : IAudioDecoder
         var duration = _formatCtx->streams[_streamIndex]->duration * rational * 1000.00;
         duration = duration > 0 ? duration : _formatCtx->duration / 1000.00;
 
-        StreamInfo = new AudioStreamInfo(_codecCtx->channels, _codecCtx->sample_rate, duration.Milliseconds());
+        StreamInfo = new AudioStreamInfo(_codecCtx->ch_layout.nb_channels, _codecCtx->sample_rate, duration.Milliseconds());
 
         _currentPacket = ffmpeg.av_packet_alloc();
         _currentFrame = ffmpeg.av_frame_alloc();
@@ -176,10 +178,9 @@ public sealed unsafe class FFmpegDecoder : IAudioDecoder
             }
 
             // Handle unknown channel layout so the resampler can process the frame
-            if (_currentFrame->channel_layout <= 0)
+            if (_currentFrame->ch_layout.nb_channels <= 0)
             {
-                var channelLayout = (ulong)ffmpeg.av_get_default_channel_layout(_codecCtx->channels);
-                _currentFrame->channel_layout = channelLayout;
+                ffmpeg.av_channel_layout_default(&_currentFrame->ch_layout, _codecCtx->ch_layout.nb_channels);
             }
 
             // Converts samples from received frame using resampler
@@ -259,7 +260,8 @@ public sealed unsafe class FFmpegDecoder : IAudioDecoder
         }
 
         ffmpeg.avformat_close_input(&formatCtx);
-        ffmpeg.avcodec_close(_codecCtx);
+        var codecCtx = _codecCtx;
+        ffmpeg.avcodec_free_context(&codecCtx);
 
         _resampler?.Dispose();
         _reads = null;
