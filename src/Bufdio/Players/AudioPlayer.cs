@@ -55,13 +55,6 @@ public class AudioPlayer : IAudioPlayer
         Queue = new ConcurrentQueue<AudioFrame>();
     }
 
-    /// <summary>
-    /// Initializes <see cref="AudioPlayer"/> instance by using default audio engine.
-    /// </summary>
-    public AudioPlayer() : this(new PortAudioEngine())
-    {
-    }
-
     /// <inheritdoc />
     public event EventHandler StateChanged;
 

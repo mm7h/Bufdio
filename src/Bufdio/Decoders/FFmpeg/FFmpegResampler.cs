@@ -65,7 +65,7 @@ internal sealed unsafe class FFmpegResampler : IDisposable
 
             int srcNbSamples = source.nb_samples;
             int expectedDstNbSamples = (int)ffmpeg.av_rescale_rnd(
-                ffmpeg.swr_get_delay(_swrCtx, _srcSampleRate) + srcNbSamples,
+                srcNbSamples,
                 _dstSampleRate,
                 _srcSampleRate,
                 AVRounding.AV_ROUND_UP);
@@ -161,7 +161,7 @@ internal sealed unsafe class FFmpegResampler : IDisposable
 
                             var actualSize = convertedSamples * _bytesPerSample * _dstChannels;
                             var finalResult = new byte[actualSize];
-                            Array.Copy(outputBuffer, finalResult, actualSize);
+                            Array.Copy(outputBuffer, 0, finalResult, 0, actualSize);
 
                             result = finalResult;
                             error = null;
